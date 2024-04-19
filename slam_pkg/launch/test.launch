@@ -1,0 +1,71 @@
+<launch>
+    <arg name="port" default="/dev/ttyACM0" />
+    <arg name="baud" default="115200" />
+    <node pkg="rosserial_server" type="serial_node" name="rosserial_server" output="screen">
+        <param name="port" value="$(arg port)" />
+        <param name="baud" value="$(arg baud)" />
+    </node>
+    <node pkg="asdw_ctrl" name="keyboard_ctrl" type="keyboard.py" output="screen">
+    </node>
+    <node pkg="asdw_ctrl" name="terminal_comm" type="ardu_comm.py" output="screen">
+    </node>
+
+    <!-- Realsense Camera -->
+    <!-- <arg name="offline"          default="false"/>
+    <include unless="$(arg offline)" 
+        file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="publish_tf" value="false"/>
+        <arg name="align_depth" value="true"/>
+        <arg name="linear_accel_cov" value="1.0"/>
+        <arg name="unite_imu_method" value="linear_interpolation"/>
+    </include> -->
+
+    <!-- IMU filter -->
+    <node pkg="imu_filter_madgwick" type="imu_filter_node" name="ImuFilter">
+        <param name="use_mag" type="bool" value="false" />
+        <param name="_publish_tf" type="bool" value="false" />
+        <param name="_world_frame" type="string" value="enu" />
+        <remap from="/imu/data_raw" to="/camera/imu"/>
+        <remap from="imu_data" to="/camera/imu"/> 
+    </node>
+
+    <!-- launch rplidar_s2e -->
+    <node name="rplidarNode"          pkg="rplidar_ros"  type="rplidarNode" output="screen">
+    <param name="channel_type"        type="string" value="udp"/>  
+    <param name="udp_ip"              type="string" value="192.168.11.2"/>  
+    <param name="frame_id"            type="string" value="laser"/>
+    <param name="inverted"            type="bool"   value="false"/>
+    <param name="angle_compensate"    type="bool"   value="true"/>
+    <param name="scan_mode"           type="string" value="Sensitivity"/>
+    <param name="scan_frequency"      type="int"    value="10"/>
+    </node>
+
+    <!-- odom -->
+    <include file="$(find robot_localization)/launch/ukf_template.launch"/>
+    <!-- <param name="publish_tf" value="false"/> -->
+    <param name="/ukf_se/frequency" value="300"/>
+    <param name="/ukf_se/base_link_frame" value="base_link"/>
+    <param name="/ukf_se/imu0" value="/imu/data"/>
+    <param name="/ukf_se/imu0_differential" value="true"/>
+    <param name="/ukf_se/imu0_relative" value="false"/>
+    <param name="/ukf_se/use_control" value="false"/>
+    <rosparam param="/ukf_se/imu0_config">[false, false, false,
+                                            true,  true,  true,
+                                            true,  true,  true,
+                                            true,  true,  true,
+                                            true,  true,  true]
+    </rosparam>
+    <!-- <remap from="/odometry/filtered" to="/odom"/> -->
+
+    <!-- run generate_tf.py -->
+    <node pkg="slam_pkg" type="generate_tf.py" name="generate_tf" output="screen">
+    </node>
+    <!-- <node pkg="slam_pkg" type="tf_broadcaster.py" name="tf_broadcaster" output="screen">
+    </node> -->
+
+    <!-- slam toolbox -->
+    <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+    <rosparam command="load" file="$(find slam_pkg)/config/mapper_params_online_async.yaml" />
+    </node>
+
+</launch>

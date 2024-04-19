@@ -1,0 +1,97 @@
+<launch>
+
+  <arg name="port" default="/dev/ttyACM0" />
+  <arg name="baud" default="115200" />
+  <node pkg="rosserial_server" type="serial_node" name="rosserial_server" output="screen">
+    <param name="port" value="$(arg port)" />
+    <param name="baud" value="$(arg baud)" />
+  </node>
+  <node pkg="asdw_ctrl" name="keyboard_ctrl" type="keyboard.py" output="screen">
+  </node>
+  <node pkg="asdw_ctrl" name="terminal_comm" type="ardu_comm.py" output="screen">
+  </node>
+    
+
+  <!-- Realsense Camera -->
+  <arg name="offline"          default="false"/>
+  <include unless="$(arg offline)" 
+    file="$(find realsense2_camera)/launch/rs_camera.launch">
+    <arg name="align_depth" value="true"/>
+    <arg name="linear_accel_cov" value="1.0"/>
+    <arg name="unite_imu_method" value="linear_interpolation"/>
+  </include>
+
+  <!-- IMU filter -->
+  <node pkg="imu_filter_madgwick" type="imu_filter_node" name="ImuFilter">
+    <param name="use_mag" type="bool" value="false" />
+    <param name="_publish_tf" type="bool" value="false" />
+    <param name="_world_frame" type="string" value="enu" />
+    <remap from="/imu/data_raw" to="/camera/imu"/>
+    <remap from="imu_data" to="/camera/imu"/> 
+  </node>
+
+
+  <!-- Ros web control-->
+	<include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+
+  <!-- <node pkg="slam_pkg" type="odometry_publisher.py" name="odometry_publisher" output="screen">
+  </node> REDUNDANT-->
+<!-- 
+  <node pkg="slam_pkg" type="tf_broadcaster.py" name="tf_broadcaster" output="screen">
+  </node> -->
+  <node pkg="slam_pkg" type="tf_broadcaster2.cpp" name="tf_broadcaster2" output="screen">
+  </node>
+
+  <!---->
+
+  <include file="$(find rplidar_ros)/launch/rplidar_s2e.launch"/>
+
+  <!--node pkg="hector_mapping" type="hector_mapping" name="hector_mapping"/-->
+
+
+
+  <!-- State estimation -->
+  <include file="$(find robot_localization)/launch/ukf_template.launch"/>
+  <param name="/ukf_se/frequency" value="300"/>
+  <param name="/ukf_se/base_link_frame" value="base_link"/>
+  <!-- <param name="/ukf_se/odom0" value="odom"/>
+  <rosparam param="/ukf_se/odom0_config">[true,true,true,
+                                          true,true,true,
+                                          true,true,true,
+                                          true,true,true,
+                                          true,true,true]
+  </rosparam>
+  <param name="/ukf_se/odom0_relative" value="true"/>
+  <param name="/ukf_se/odom0_pose_rejection_threshold" value="10000000"/>
+  <param name="/ukf_se/odom0_twist_rejection_threshold" value="10000000"/> -->
+
+  <param name="/ukf_se/imu0" value="/imu/data"/>
+  <rosparam param="/ukf_se/imu0_config">[false, false, false,
+                                          true,  true,  true,
+                                          true,  true,  true,
+                                          true,  true,  true,
+                                          true,  true,  true]
+  </rosparam>
+  <param name="/ukf_se/imu0_differential" value="true"/>
+  <param name="/ukf_se/imu0_relative" value="false"/>
+  <param name="/ukf_se/use_control" value="false"/>
+  <!-- <remap from="/odometry/filtered" to="/odom"/> -->
+
+  <node pkg="rviz" type="rviz" name="rviz"/>
+
+  <!--node pkg="rqt_robot_steering" type="rqt_robot_steering" name="rqt_robot_steering"/-->
+
+  <node pkg="tf" type="static_transform_publisher" name="laser_to_base_link_tf_publisher" 
+    args="0 0 0 0 0 0 1 base_link laser 100" >
+  </node>
+
+  <!-- <node name="slam_toolbox" pkg="slam_toolbox" type="sync_slam_toolbox_node" output="screen">
+    <remap from="odom" to="/odometry/filtered"/>
+  </node> -->
+
+  <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox" output="screen">
+    <rosparam command="load" file="$(find slam_pkg)/config/mapper_params_online_async.yaml" />
+  </node>
+  
+
+</launch> 
