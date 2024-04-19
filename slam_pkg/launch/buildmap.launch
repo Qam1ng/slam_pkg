@@ -36,11 +36,12 @@
 
   <!-- <node pkg="slam_pkg" type="odometry_publisher.py" name="odometry_publisher" output="screen">
   </node> REDUNDANT-->
-<!-- 
+
   <node pkg="slam_pkg" type="tf_broadcaster.py" name="tf_broadcaster" output="screen">
-  </node> -->
+  </node> 
+<!-- 
   <node pkg="slam_pkg" type="tf_broadcaster2.cpp" name="tf_broadcaster2" output="screen">
-  </node>
+  </node> -->
 
   <!---->
 
